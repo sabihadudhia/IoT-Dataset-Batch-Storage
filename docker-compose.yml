@@ -40,7 +40,7 @@ services:
       dockerfile: Dockerfile.producer
     depends_on:
       - kafka
-    restart: always
+    restart: on-failure
 
   consumer:
     build:
