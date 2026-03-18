@@ -14,14 +14,14 @@ RETRY_DELAY = 5  # seconds
 INVALID_LIMITS = {
     "temp": (-100, 80),
     "humidity": (5, 95),
-    "co": (0, 10000),
+    "co": (0, 1),
     "lpg": (0, 0.2),
     "smoke": (0, 0.05),
 }
 ALERT_LIMITS = {
-    "co": 200,
-    "smoke": 0.05,
-    "lpg": 0.2,
+    "co": 0.01,
+    "smoke": 0.04,
+    "lpg": 0.15,
     "temp": 43
 }
 
