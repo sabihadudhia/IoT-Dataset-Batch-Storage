@@ -40,7 +40,8 @@ services:
       dockerfile: Dockerfile.producer
     depends_on:
       - kafka
-    
+    restart: on-failure
+
   consumer:
     build:
       context: .
@@ -48,6 +49,7 @@ services:
     depends_on:
       - kafka
       - mongodb
+    restart: on-failure
 
 
 
