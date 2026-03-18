@@ -1,23 +1,29 @@
 # IoT Dataset Batch Storage
 
 ## Project Overview
-This project implements a data engineering pipeline that ingests environmental sensor telemetry data from IoT devices and stores it in batches into a MongoDB database. The system is fully containerized using Docker, ensuring portability across environments with no local machine dependencies. It is designed to be scalable and migratable to distributed cloud setups in the long term.
+This project implements a data engineering pipeline that ingests environmental sensor telemetry data from IoT devices, streams it through Apache Kafka, validates it for data quality, and stores it in MongoDB. The system is fully containerized using Docker, ensuring portability across environments with no local machine dependencies. It is designed to be scalable and migratable to distributed cloud setups in the long term.
 
 ## Results
-Environmental sensor readings from 3 IoT devices (405,184 records spanning 07/12/2020 – 07/19/2020) are batch-inserted into MongoDB in 5-minute time windows (~200 documents per batch) using PyMongo's `insert_many()`.
+Environmental sensor readings from 3 IoT devices (405,184 records spanning 07/12/2020 – 07/19/2020) are streamed through Kafka and inserted into MongoDB with data quality validation. Valid records are stored in `sensor_readings`, invalid records are stored in `sensor_rejected`, and dangerous but valid readings are flagged with an alert field.
 
 ## Features
-- Time-window batch ingestion of IoT sensor telemetry data
+- Real-time sensor data simulation via a Kafka producer
+- Data quality validation with range checks and null field detection
+- Alert flagging for dangerous but valid readings (e.g. CO > 200ppm)
 - Flexible document-oriented storage in MongoDB with no predefined schema
+- Separate rejection collection for invalid records with rejection reasons
 - Fully containerized using Docker and Docker Compose
 - Automatic database and collection initialisation via `init.js`
-- Retry logic for MongoDB connection handling
+- Retry logic for MongoDB and Kafka connection handling
 
 ## Technologies
 - Python 3.12.6
-- MongoDB (mongo:latest)
+- MongoDB (`mongo:latest`) — document-oriented database
+- Apache Kafka (`confluentinc/cp-kafka:7.8.7`) — message streaming
+- ZooKeeper (`confluentinc/cp-zookeeper:7.8.7`) — Kafka cluster coordination
 - PyMongo — Python driver for MongoDB
-- Pandas — CSV reading and time-window filtering
+- kafka-python — Python client for Kafka
+- Pandas — CSV reading and data processing
 - Docker & Docker Compose — containerization and orchestration
 
 ## Setup / Installation
@@ -35,7 +41,7 @@ https://www.kaggle.com/datasets/garystafford/environmental-sensor-data-132k
 Place the file named `iot_telemetry_data.csv` in the root of the project directory:
 ```
 IoT-Dataset-Batch-Storage/
-└── iot_telemetry_data.csv  
+└── iot_telemetry_data.csv   ← place here
 ```
 
 ### 3. Install Docker:
@@ -48,9 +54,10 @@ docker-compose up --build
 ```
 This will:
 - Pull and start the MongoDB container
-- Initialise the `sensor_db` database and `sensor_readings` collection
-- Build and run the Python container
-- Insert all sensor data into MongoDB in 5-minute time window batches
+- Initialise `sensor_db` with `sensor_readings` and `sensor_rejected` collections
+- Pull and start ZooKeeper and Kafka containers
+- Build and run the producer container — simulates sensor data streaming to Kafka
+- Build and run the consumer container — reads from Kafka, validates and inserts into MongoDB
 
 ## Usage
 
@@ -72,26 +79,42 @@ docker-compose up --build
 
 ## Project Structure
 ```
-├── python_main.py        # Main ingestion script
-├── init.js               # MongoDB database and collection initialisation
-├── Dockerfile            # Python container build instructions
-├── docker-compose.yml    # Container orchestration
-├── requirements.txt      # Python dependencies
-├── .gitignore            # Excludes dataset from version control
-└── README.md             # Documentation
+├── producer.py              # Reads CSV and streams records to Kafka
+├── consumer.py              # Reads from Kafka, validates and inserts into MongoDB
+├── python_main.py           # Original batch ingestion script (reference)
+├── init.js                  # MongoDB database and collection initialisation
+├── Dockerfile.producer      # Producer container build instructions
+├── Dockerfile.consumer      # Consumer container build instructions
+├── docker-compose.yml       # Container orchestration
+├── requirements.txt         # Python dependencies
+├── .gitignore               # Excludes dataset from version control
+└── README.md                # Documentation
 ```
+
+## Data Quality Validation
+
+Records are validated before insertion. Invalid records are stored in `sensor_rejected` with a `rejection_reason` field.
+
+| Field | Valid Range |
+|---|---|
+| temp | -100°C to 80°C |
+| humidity | 5% to 95% |
+| co | 0 to 10,000 ppm |
+| lpg | 0 to 0.2 |
+| smoke | 0 to 0.05 |
+
+Alert thresholds for dangerous but valid readings:
+
+| Field | Alert Threshold |
+|---|---|
+| co | > 200 ppm |
+| smoke | > 0.05 |
+| lpg | > 0.2 |
+| temp | > 43°C |
 
 ## Outputs / Example
-The pipeline prints progress to the console as batches are inserted:
 
-```
-Connected to MongoDB
-Inserted 198 records for window 1594512094 - 1594512394
-Inserted 203 records for window 1594512394 - 1594512694
-...
-```
-
-Each document stored in MongoDB follows this structure:
+Valid document stored in `sensor_readings`:
 ```json
 {
   "ts": 1594512094,
@@ -106,8 +129,30 @@ Each document stored in MongoDB follows this structure:
 }
 ```
 
+Alerted document stored in `sensor_readings`:
+```json
+{
+  "ts": 1594512094,
+  "device": "b8:27:eb:bf:9d:51",
+  "co": 250,
+  "alert": true,
+  "reason": "co above alert threshold (200)"
+}
+```
+
+Rejected document stored in `sensor_rejected`:
+```json
+{
+  "ts": 1594512094,
+  "device": "b8:27:eb:bf:9d:51",
+  "temp": 999,
+  "rejection_reason": "temp out of range [-100, 80]"
+}
+```
+
 ## Notes / Additional Info
 - The dataset CSV file is excluded from the repository via `.gitignore` due to GitHub's 100MB file size limit. It must be downloaded manually from Kaggle and placed in the project root before running.
 - MongoDB credentials are defined in `docker-compose.yml` (default: `admin` / `password`). These are suitable for local development only.
-- The Python container uses the Docker bridge network to connect to MongoDB via the service hostname `mongodb` — not `localhost`.
-- If the pipeline fails on first run, Docker may need a moment to fully initialise MongoDB. The retry logic in `python_main.py` handles this automatically with up to 5 attempts.
+- All containers communicate via Docker's bridge network — service hostnames (`mongodb`, `kafka`, `zookeeper`) are used instead of `localhost`.
+- Kafka and ZooKeeper may take 10-20 seconds to initialise. Retry logic in both `producer.py` and `consumer.py` handles this automatically with up to 5 attempts.
+- The producer simulates real-time sensor data with a small delay between messages. Reduce `time.sleep()` in `producer.py` for faster testing.
