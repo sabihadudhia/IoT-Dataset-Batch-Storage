@@ -92,6 +92,16 @@ def is_alert(record: dict) -> tuple[bool, str]:
     return False, ""
 
 
+def insert_with_error_handling(collection, record: dict, collection_name: str) -> None:
+    try:
+        collection.insert_one(record)
+    except DuplicateKeyError:
+        duplicate_key = {k: record.get(k) for k in ("device", "ts") if k in record}
+        print(f"Duplicate record skipped in {collection_name}: {duplicate_key}")
+    except PyMongoError as exc:
+        print(f"Insert failed for {collection_name}: {exc}")
+
+
 def main() -> None:
     mongo_client = connect_mongo_with_retry()
     db = mongo_client["sensor_db"]
