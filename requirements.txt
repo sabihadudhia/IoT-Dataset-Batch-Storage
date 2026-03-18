@@ -1,2 +1,3 @@
 pandas
-PyMondo
+PyMongo
+kafka-python
