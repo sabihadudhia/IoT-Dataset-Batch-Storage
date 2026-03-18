@@ -99,7 +99,7 @@ Records are validated before insertion. Invalid records are stored in `sensor_re
 |---|---|
 | temp | -100°C to 80°C |
 | humidity | 5% to 95% |
-| co | 0 to 10,000 ppm |
+| co | 0 to 1 % ppm |
 | lpg | 0 to 0.2 |
 | smoke | 0 to 0.05 |
 
@@ -107,9 +107,9 @@ Alert thresholds for dangerous but valid readings:
 
 | Field | Alert Threshold |
 |---|---|
-| co | > 200 ppm |
-| smoke | > 0.05 |
-| lpg | > 0.2 |
+| co | > 0.01 % ppm  |
+| smoke | > 0.04 % ppm |
+| lpg | > 0.15 % ppm |
 | temp | > 43°C |
 
 ## Outputs / Example
