@@ -59,6 +59,43 @@ This will:
 - Build and run the producer container — simulates sensor data streaming to Kafka
 - Build and run the consumer container — reads from Kafka, validates and inserts into MongoDB
 
+### 5. Verification
+
+Once the pipeline is running, open a second terminal and connect to MongoDB to verify the data:
+```bash
+docker exec -it mongodb-container mongosh -u admin -p password
+```
+
+Then run the following commands:
+```javascript
+use sensor_db
+
+// Total valid records stored
+db.sensor_readings.countDocuments()
+
+// Total rejected records
+db.sensor_rejected.countDocuments()
+
+// View rejection reasons
+db.sensor_rejected.find({}, {rejection_reason: 1, humidity: 1, device: 1, _id: 0})
+
+// Total alert-flagged records
+db.sensor_readings.countDocuments({ alert: true })
+
+// View an alert-flagged document
+db.sensor_readings.findOne({ alert: true })
+
+// View a normal valid document
+db.sensor_readings.findOne()
+
+// View highest CO readings
+db.sensor_readings.find({}, {co: 1, _id: 0}).sort({co: -1}).limit(5)
+```
+
+### Expected Results
+- `sensor_readings` — approximately 405,167 valid documents
+- `sensor_rejected` — 17 documents, all from device `1c:bf:ce:15:ec:4d` with humidity < 5%
+- Alert-flagged documents — 1,056 records with CO > 0.01
 ## Usage
 
 - **Run the full pipeline:**
