@@ -7,8 +7,8 @@ from kafka import KafkaProducer
 
 KAFKA_BOOTSTRAP = "kafka:9092"
 KAFKA_TOPIC = "iot-sensor-data"
-MAX_RETRIES = 5
-RETRY_DELAY = 5  # seconds
+MAX_RETRIES = 10
+RETRY_DELAY = 10  # seconds
 
 
 def create_producer_with_retry() -> KafkaProducer:
@@ -29,6 +29,9 @@ def create_producer_with_retry() -> KafkaProducer:
 
 
 def main() -> None:
+    print("Waiting for Kafka and MongoDB to be ready...")
+    time.sleep(20)
+    
     producer = create_producer_with_retry()
 
     csv_path = Path(__file__).with_name("iot_telemetry_data.csv")
