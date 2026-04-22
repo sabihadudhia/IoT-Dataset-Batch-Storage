@@ -4,7 +4,7 @@
 This project implements a data engineering pipeline that ingests environmental sensor telemetry data from IoT devices, streams it through Apache Kafka, validates it for data quality, and stores it in MongoDB. The system is fully containerized using Docker, ensuring portability across environments with no local machine dependencies. It is designed to be scalable and migratable to distributed cloud setups in the long term.
 
 ## Results
-Environmental sensor readings from 3 IoT devices (405,184 records spanning 07/12/2020 – 07/19/2020) are streamed through Kafka and inserted into MongoDB with data quality validation. Valid records are stored in `sensor_readings`, invalid records are stored in `sensor_rejected`, and dangerous but valid readings are flagged with an alert field.
+Environmental sensor readings from 3 IoT devices (405184 records spanning 07/12/2020 – 07/19/2020) are streamed through Kafka and inserted into MongoDB with data quality validation. Valid records are stored in `sensor_readings`, invalid records are stored in `sensor_rejected`, and dangerous but valid readings are flagged with an alert field.
 
 ## Features
 - Real-time sensor data simulation via a Kafka producer
